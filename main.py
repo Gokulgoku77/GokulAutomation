@@ -35,7 +35,6 @@ def xml_to_dataframe(path):
     df_data['assertion_id'] = np.nan
     df_data['assertion_comment'] = np.nan
     df_data['assertion_result'] = np.nan
-    df_data['comment'] = np.nan
 
     # For comparision and check
     lt = []
@@ -123,7 +122,8 @@ def xml_to_dataframe(path):
                                 df_check = pd.DataFrame(dict_check, index=[0])
                                 df_data = pd.concat([df_data, df_check], axis=0)
                             else:
-                                if test_data['conditions']['condition'] and '@conditionID' in test_data['conditions']['condition']:
+                                if test_data['conditions']['condition'] and '@conditionID' in test_data['conditions'][
+                                    'condition']:
                                     print("day")
                                 if test_data['conditions']['condition']['checks']:
                                     print("night")
@@ -190,8 +190,8 @@ def xml_to_dataframe(path):
         traceback.print_exc()
         return df_data.replace(np.nan, 'n/e')
         # .to_csv('chec.csv', index=False)
-    df_data["assertion_id"].replace("", 'No-Checks', inplace=True)
-    return df_data.replace(np.nan, 'No-Condition')
+    #df_data["assertion_id"].replace("", 'No-Checks', inplace=True)
+    return df_data.replace(np.nan, 'n/a')
 
 
 df_au = xml_to_dataframe('GRLReport_golden.xml')
@@ -213,26 +213,17 @@ gen_assertion_result_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(n
                              name in df_gen['check'].to_list()}
 gen_assertion_comment_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['assertion_comment'].strip() for
                               name in df_gen['check'].to_list()}
-# print('zebra', gen_test_result_dict)
 
-# test_name_list_au = df_au['test_name'].to_list()
-# test_name_list_au1 = set(test_name_list_au)
-# print('test_name_list_au',test_name_list_au1)
+
 test_name_test_name_au = df_au['test_name'].drop_duplicates().to_list()
 print('test_name_test_name_au', test_name_test_name_au)
 test_name_test_name_gen = df_gen['test_name'].drop_duplicates().to_list()
-print('test_name_test_name_gen',test_name_test_name_gen)
-# for name in test_name_test_name_au:
-
-
-# test_name_test_name_gen =df_gen['test_name'].drop_duplicates().to_list()
-# print('test_name_test_name_gen',test_name_test_name_gen)
+print('test_name_test_name_gen', test_name_test_name_gen)
 
 data_comp_dict = {
     'test_name': df_au['test_name'].to_list(),
     'golden_report_test_result': df_au['test_result'].to_list(),
     'generated_report_test_result': np.nan,
-    'compared_result': '',
     'testCondition_name': df_au['assertion_name'].to_list(),
     'assertion_id': df_au['assertion_id'].to_list(),
     'golden_report_assertion_comment': df_au['assertion_comment'].to_list(),
@@ -252,80 +243,39 @@ df_data_comp1 = pd.DataFrame(data_comp_dict1)
 
 test_list = df_data_comp['check'].to_list()
 gen_test_list = df_gen['check'].to_list()
-# print('test_list', test_list)
-# print('gen_test_list', gen_test_list)
 
 for name in test_list:
     # print(name)
     try:
         if name in gen_test_list:
             df_data_comp.at[test_list.index(name), 'generated_report_test_result'] = gen_test_result_dict[name]
-            #print('qwert',gen_test_result_dict[name])
+            # print('qwert',gen_test_result_dict[name])
             df_data_comp.at[test_list.index(name), 'generated_report_assertion_result'] = gen_assertion_result_dict[
                 name]
             df_data_comp.at[test_list.index(name), 'generated_report_assertion_comment'] = gen_assertion_comment_dict[
                 name]
-            df_data_comp.at[test_list.index(name), 'comment'] = 'Executed'
             # print('Zance', gen_test_result_dict[name])
     except Exception as e:
         pass
         print(e)
 
-df_data_comp['compared_result'] = df_data_comp['golden_report_test_result'] == (
-    df_data_comp['generated_report_test_result'])
-
 df_data_comp['generated_report_assertion_result'].fillna('n/a', inplace=True)
-df_data_comp['assertion_result'] = df_data_comp['golden_report_assertion_result'] == (
+
+df_data_comp['assertion_result'] = df_data_comp['golden_report_assertion_result']== (
     df_data_comp['generated_report_assertion_result'])
 
-df_data_comp.drop('check', axis=1, inplace=True)
-# df_data_comp1.drop('golden_report_test_result', axis=1, inplace=True)
-# df_data_comp1.drop('generated_report_test_result', axis=1, inplace=True)
-# df_data_comp1.drop('compared_result', axis=1, inplace=True)
-# df_data_comp['generated_report_assertion_result'].fillna('n/a', inplace=False)
-# df_data_comp['compared_result'].fillna('NA', inplace=True)
-# df_data_comp.fillna('no comment', inplace=True)
-# df_data_comp.to_csv('outcheck.csv', index=False)
 
-# def color_boolean(val):
-#     return ['background-color: red' if x == False else 'background-color: green' for x in val]
-#
-#
-# df_data_comp = df_data_comp.style.apply(color_boolean, axis=1, subset=['compared_result', 'assertion_result'])
-# df_data_comp = df_data_comp.style.apply(color_boolean_na, axis=1, subset=['testCondition_name'])
-# print(df_data_comp['generated_report_test_result'])
 df_data_comp.to_excel('styled4.xlsx', engine='openpyxl', index=False)
-#
-# # ([‘test_name’, ‘compared_result’], as_index=false)
+
 writer = pd.ExcelWriter('styled41.xlsx', engine='xlsxwriter')
-#
-# # Write the first DataFrame to a sheet named 'Sheet1'
 
-#
-# # Write the second DataFrame to a sheet named 'Sheet2'
 df_data_comp["check"] = df_data_comp["golden_report_test_result"] + df_data_comp["test_name"]
-print("ooo",df_data_comp["check"])
-#B = df_data_comp['check'].drop_duplicates()
+print("ooo", df_data_comp["check"])
 df_data_comp1["golden_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
-#B.to_csv('golden1.csv', index=False)
 
-#for item in df_data_comp1["golden_report_test_result"].iteritems():
-# df_data_comp["check"] = df_data_comp["generated_report_test_result"] + df_data_comp["test_name"]
-# #df_data_comp1["generated_report_test_result"] = np.nan
-# B = df_data_comp['check'].drop_duplicates()
-# #df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates()
-# B.to_csv('golden1.csv', index=False)
-#if item in A:
-#df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates()
-
-# #df_data_comp["check"] = df_data_comp["generated_report_test_result"] + df_data_comp["test_name"]
-# print("mmm",df_data_comp["check"])
-# df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates()
-# A= df_data_comp["check"].drop_duplicates()
-# A.to_csv('golden2.csv', index=False)
 print(len(df_data_comp['test_name'].drop_duplicates().to_list()))
-dict_check = {}
 
+dict_check = {}
 for name in test_name_test_name_au:
     print('test name ', name)
     if name in test_name_test_name_gen:
@@ -338,23 +288,13 @@ print(len(dict_check.values()))
 
 del df_data_comp['golden_report_test_result']
 del df_data_comp['generated_report_test_result']
-del df_data_comp['compared_result']
 del df_data_comp['check']
 df_data_comp.to_excel(writer, sheet_name='Sheet1', index=False)
-#df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
 
-#df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
-#print('cat',df_data_comp1["generated_report_test_result"])
-# for name in test_name_test_name_au:
-#     print('ban',name)
-#     if name in test_name_test_name_gen:
-#         print('gok',name)
-#         df_data_comp["check"] = df_data_comp["generated_report_test_result"] + df_data_comp["test_name"]
-#         df_data_comp1["generated_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
 
 def removeValue(string):
-    #pattern = r'[*]'
-    #string = re.sub(pattern, '', string)
+    # pattern = r'[*]'
+    # string = re.sub(pattern, '', string)
     for x in string:
         if x == 'n':
             return string[:3]
@@ -364,6 +304,16 @@ def removeValue(string):
 
 df_data_comp1["golden_report_test_result"] = df_data_comp1["golden_report_test_result"].apply(removeValue)
 df_data_comp1["generated_report_test_result"] = dict_check.values()
+
+df_data_comp1['Overall_result'] = df_data_comp1["golden_report_test_result"] == (
+    df_data_comp1["generated_report_test_result"])
+
+
+def color_boolean(val):
+    return ['background-color: red' if x == False else 'background-color: green' for x in val]
+
+
+df_data_comp1 = df_data_comp1.style.apply(color_boolean, axis=1, subset=['Overall_result'])
 
 df_data_comp1.to_excel(writer, sheet_name='Sheet2', index=False)
 writer.save()
