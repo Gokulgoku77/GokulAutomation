@@ -1,16 +1,38 @@
-import time
 import xmltodict
-import pprint
 import json
+import os
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import traceback
-import re
-import openpyxl
-import xlsxwriter
 
+
+def vif_path():
+    # Set the directory path
+    dir_path = 'C:\\GRL\\USBPD-C2-Browser-App\\Report\\TempReport'
+
+    print(os.listdir(dir_path))
+    fold_stamp = {}
+    for fold in os.listdir(dir_path):
+        get_time = os.path.getctime(rf"{dir_path}\{fold}")
+        get_stamp = datetime.fromtimestamp(get_time)
+        fold_stamp[get_stamp] = fold
+    print(fold_stamp[max(fold_stamp.keys())])
+    # Search for XML
+    dirt = rf"{dir_path}\{fold_stamp[max(fold_stamp.keys())]}"
+    print(dirt)
+    vif = []
+    for dirpath, dirnames, filenames in os.walk(dirt):
+        for filename in filenames:
+            if filename.endswith(".xml"):
+                file_path = os.path.join(dirpath, filename)
+                vif.append(file_path)
+                vif_file = vif[0]
+                print(vif_file)
+                return vif_file
 
 def xml_to_dataframe(path):
+
     # Reading xml file and converting to dictionary
     with open(path, 'r', encoding='utf-8') as file:
         xml_data = file.read()
@@ -190,12 +212,14 @@ def xml_to_dataframe(path):
         traceback.print_exc()
         return df_data.replace(np.nan, 'n/e')
         # .to_csv('chec.csv', index=False)
-    #df_data["assertion_id"].replace("", 'No-Checks', inplace=True)
+    df_data["assertion_id"].replace("", 'No-Checks', inplace=True)
     return df_data.replace(np.nan, 'n/a')
 
+gen_path = vif_path()
+print(gen_path)
 
-df_au = xml_to_dataframe('GRLReport_golden.xml')
-df_gen = xml_to_dataframe('GRLReport.xml')
+df_au = xml_to_dataframe(gen_path)
+df_gen = xml_to_dataframe(gen_path)
 
 df_au.to_csv('golden.csv', index=False)
 df_gen.to_csv('generated.csv', index=False)
@@ -243,18 +267,23 @@ df_data_comp1 = pd.DataFrame(data_comp_dict1)
 
 test_list = df_data_comp['check'].to_list()
 gen_test_list = df_gen['check'].to_list()
-
+print(test_list)
+count = 0
 for name in test_list:
     # print(name)
     try:
+
         if name in gen_test_list:
-            df_data_comp.at[test_list.index(name), 'generated_report_test_result'] = gen_test_result_dict[name]
+            df_data_comp.at[count, 'generated_report_test_result'] = gen_test_result_dict[name]
             # print('qwert',gen_test_result_dict[name])
-            df_data_comp.at[test_list.index(name), 'generated_report_assertion_result'] = gen_assertion_result_dict[
+            df_data_comp.at[count, 'generated_report_assertion_result'] = gen_assertion_result_dict[
                 name]
-            df_data_comp.at[test_list.index(name), 'generated_report_assertion_comment'] = gen_assertion_comment_dict[
+            df_data_comp.at[count, 'generated_report_assertion_comment'] = gen_assertion_comment_dict[
                 name]
+
             # print('Zance', gen_test_result_dict[name])
+        count+=1
+
     except Exception as e:
         pass
         print(e)
@@ -267,7 +296,7 @@ df_data_comp['assertion_result'] = df_data_comp['golden_report_assertion_result'
 
 df_data_comp.to_excel('styled4.xlsx', engine='openpyxl', index=False)
 
-writer = pd.ExcelWriter('styled41.xlsx', engine='xlsxwriter')
+writer = pd.ExcelWriter('styled.xlsx', engine='xlsxwriter')
 
 df_data_comp["check"] = df_data_comp["golden_report_test_result"] + df_data_comp["test_name"]
 print("ooo", df_data_comp["check"])
@@ -289,7 +318,7 @@ print(len(dict_check.values()))
 del df_data_comp['golden_report_test_result']
 del df_data_comp['generated_report_test_result']
 del df_data_comp['check']
-df_data_comp.to_excel(writer, sheet_name='Sheet1', index=False)
+df_data_comp.to_excel(writer, sheet_name='Assertion_Result', index=True)
 
 
 def removeValue(string):
@@ -315,6 +344,6 @@ def color_boolean(val):
 
 df_data_comp1 = df_data_comp1.style.apply(color_boolean, axis=1, subset=['Overall_result'])
 
-df_data_comp1.to_excel(writer, sheet_name='Sheet2', index=False)
+df_data_comp1.to_excel(writer, sheet_name='Overall_Result', index=False)
 writer.save()
 # # Save the Excel
