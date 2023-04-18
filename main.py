@@ -7,32 +7,63 @@ import numpy as np
 import traceback
 
 
-def vif_path():
+def golden_path():
+    path = "json/resource.json"
+    with open(path, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+        # print('golden_vif_path',data["Golden_Path"])
+        vif_file = data["Golden_Path"]
+        # print(vif_file)
+        vif = []
+        for dirpath, dirnames, filenames in os.walk(vif_file):
+            for filename in filenames:
+                if filename.endswith(".xml"):
+                    file_path = os.path.join(dirpath, filename)
+                    vif.append(file_path)
+        golden_path_x = [path for path in vif if "VIF" not in path]
+        print(golden_path_x)
+        return golden_path_x
+
+
+def generated_vif_path():
     # Set the directory path
     dir_path = 'C:\\GRL\\USBPD-C2-Browser-App\\Report\\TempReport'
-
     print(os.listdir(dir_path))
     fold_stamp = {}
     for fold in os.listdir(dir_path):
         get_time = os.path.getctime(rf"{dir_path}\{fold}")
         get_stamp = datetime.fromtimestamp(get_time)
         fold_stamp[get_stamp] = fold
-    print(fold_stamp[max(fold_stamp.keys())])
+    # print(fold_stamp[max(fold_stamp.keys())])
     # Search for XML
     dirt = rf"{dir_path}\{fold_stamp[max(fold_stamp.keys())]}"
-    print(dirt)
     vif = []
     for dirpath, dirnames, filenames in os.walk(dirt):
         for filename in filenames:
             if filename.endswith(".xml"):
                 file_path = os.path.join(dirpath, filename)
                 vif.append(file_path)
-                vif_file = vif[0]
-                print(vif_file)
-                return vif_file
+    generated_vif_path_x = [path for path in vif if "VIF" not in path]
+    print(generated_vif_path_x)
+    return generated_vif_path_x
+
+
+def compare(golden, generated):
+    path_list_1 = golden
+    path_list_2 = generated
+    golden_paths = []
+    gen_path = []
+    for path1 in path_list_1:
+        for path2 in path_list_2:
+            if os.path.basename(os.path.dirname(path1)) == os.path.basename(
+                    os.path.dirname(path2)) and os.path.basename(path1) == os.path.basename(path2):
+                golden_paths.append(path1)
+                gen_path.append(path2)
+
+    return golden_paths, gen_path
+
 
 def xml_to_dataframe(path):
-
     # Reading xml file and converting to dictionary
     with open(path, 'r', encoding='utf-8') as file:
         xml_data = file.read()
@@ -215,135 +246,140 @@ def xml_to_dataframe(path):
     df_data["assertion_id"].replace("", 'No-Checks', inplace=True)
     return df_data.replace(np.nan, 'n/a')
 
-gen_path = vif_path()
-print(gen_path)
 
-df_au = xml_to_dataframe(gen_path)
-df_gen = xml_to_dataframe(gen_path)
+list_Goldenpath = golden_path()
+list_Generatedpath = generated_vif_path()
 
-df_au.to_csv('golden.csv', index=False)
-df_gen.to_csv('generated.csv', index=False)
+grl_GoldenReport, grl_GeneratedReport = compare(list_Goldenpath, list_Generatedpath)
 
-df_au['check'] = df_au['test_name'] + df_au['assertion_name'] + df_au['assertion_id']
-df_gen['check'] = df_gen['test_name'] + df_gen['assertion_name'] + df_gen['assertion_id']
+for x in range(len(grl_GoldenReport)):
+    df_au = xml_to_dataframe(grl_GoldenReport[x])
+    df_gen = xml_to_dataframe(grl_GeneratedReport[x])
 
-gen_assertion_test_result = df_gen['test_result'].to_list()
-gen_assertion_comment_list = df_gen['assertion_comment'].to_list()
-gen_assertion_result_list = df_gen['assertion_result'].to_list()
+    df_au.to_csv('golden.csv', index=False)
+    df_gen.to_csv('generated.csv', index=False)
 
-gen_test_result_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['test_result'] for name in
-                        df_gen['check'].to_list()}
-gen_assertion_result_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['assertion_result'].strip() for
-                             name in df_gen['check'].to_list()}
-gen_assertion_comment_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['assertion_comment'].strip() for
-                              name in df_gen['check'].to_list()}
+    df_au['check'] = df_au['test_name'] + df_au['assertion_name'] + df_au['assertion_id']
+    df_gen['check'] = df_gen['test_name'] + df_gen['assertion_name'] + df_gen['assertion_id']
 
+    gen_assertion_test_result = df_gen['test_result'].to_list()
+    gen_assertion_comment_list = df_gen['assertion_comment'].to_list()
+    gen_assertion_result_list = df_gen['assertion_result'].to_list()
 
-test_name_test_name_au = df_au['test_name'].drop_duplicates().to_list()
-print('test_name_test_name_au', test_name_test_name_au)
-test_name_test_name_gen = df_gen['test_name'].drop_duplicates().to_list()
-print('test_name_test_name_gen', test_name_test_name_gen)
+    gen_test_result_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['test_result'] for name in
+                            df_gen['check'].to_list()}
+    gen_assertion_result_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['assertion_result'].strip()
+                                 for
+                                 name in df_gen['check'].to_list()}
+    gen_assertion_comment_dict = {name: df_gen.iloc[df_gen['check'].to_list().index(name)]['assertion_comment'].strip()
+                                  for
+                                  name in df_gen['check'].to_list()}
 
-data_comp_dict = {
-    'test_name': df_au['test_name'].to_list(),
-    'golden_report_test_result': df_au['test_result'].to_list(),
-    'generated_report_test_result': np.nan,
-    'testCondition_name': df_au['assertion_name'].to_list(),
-    'assertion_id': df_au['assertion_id'].to_list(),
-    'golden_report_assertion_comment': df_au['assertion_comment'].to_list(),
-    'generated_report_assertion_comment': np.nan,
-    'golden_report_assertion_result': df_au['assertion_result'].to_list(),
-    'generated_report_assertion_result': np.nan,
-    'assertion_result': np.nan,
-    'check': df_au['check'].to_list()
-}
+    test_name_test_name_au = df_au['test_name'].drop_duplicates().to_list()
+    print('test_name_test_name_au', test_name_test_name_au)
+    test_name_test_name_gen = df_gen['test_name'].drop_duplicates().to_list()
+    print('test_name_test_name_gen', test_name_test_name_gen)
 
-data_comp_dict1 = {
-    'test_name': test_name_test_name_au,
-}
-# Creating empty dataframe for output
-df_data_comp = pd.DataFrame(data_comp_dict)
-df_data_comp1 = pd.DataFrame(data_comp_dict1)
+    data_comp_dict = {
+        'test_name': df_au['test_name'].to_list(),
+        'golden_report_test_result': df_au['test_result'].to_list(),
+        'generated_report_test_result': np.nan,
+        'testCondition_name': df_au['assertion_name'].to_list(),
+        'assertion_id': df_au['assertion_id'].to_list(),
+        'golden_report_assertion_comment': df_au['assertion_comment'].to_list(),
+        'generated_report_assertion_comment': np.nan,
+        'golden_report_assertion_result': df_au['assertion_result'].to_list(),
+        'generated_report_assertion_result': np.nan,
+        'assertion_result': np.nan,
+        'check': df_au['check'].to_list()
+    }
 
-test_list = df_data_comp['check'].to_list()
-gen_test_list = df_gen['check'].to_list()
-print(test_list)
-count = 0
-for name in test_list:
-    # print(name)
-    try:
+    data_comp_dict1 = {
+        'test_name': test_name_test_name_au,
+    }
+    # Creating empty dataframe for output
+    df_data_comp = pd.DataFrame(data_comp_dict)
+    df_data_comp1 = pd.DataFrame(data_comp_dict1)
 
-        if name in gen_test_list:
-            df_data_comp.at[count, 'generated_report_test_result'] = gen_test_result_dict[name]
-            # print('qwert',gen_test_result_dict[name])
-            df_data_comp.at[count, 'generated_report_assertion_result'] = gen_assertion_result_dict[
-                name]
-            df_data_comp.at[count, 'generated_report_assertion_comment'] = gen_assertion_comment_dict[
-                name]
+    test_list = df_data_comp['check'].to_list()
+    gen_test_list = df_gen['check'].to_list()
+    print(test_list)
+    count = 0
+    for name in test_list:
+        # print(name)
+        try:
 
-            # print('Zance', gen_test_result_dict[name])
-        count+=1
+            if name in gen_test_list:
+                df_data_comp.at[count, 'generated_report_test_result'] = gen_test_result_dict[name]
+                # print('qwert',gen_test_result_dict[name])
+                df_data_comp.at[count, 'generated_report_assertion_result'] = gen_assertion_result_dict[
+                    name]
+                df_data_comp.at[count, 'generated_report_assertion_comment'] = gen_assertion_comment_dict[
+                    name]
 
-    except Exception as e:
-        pass
-        print(e)
+                # print('Zance', gen_test_result_dict[name])
+            count += 1
 
-df_data_comp['generated_report_assertion_result'].fillna('n/a', inplace=True)
+        except Exception as e:
+            pass
+            print(e)
 
-df_data_comp['assertion_result'] = df_data_comp['golden_report_assertion_result']== (
-    df_data_comp['generated_report_assertion_result'])
+    df_data_comp['generated_report_assertion_result'].fillna('n/a', inplace=True)
+    df_data_comp['generated_report_assertion_comment'].fillna('n/a', inplace=True)
 
+    df_data_comp['assertion_result'] = df_data_comp['golden_report_assertion_result'] == (
+        df_data_comp['generated_report_assertion_result'])
 
-df_data_comp.to_excel('styled4.xlsx', engine='openpyxl', index=False)
+    df_data_comp.to_excel('styled4.xlsx', engine='openpyxl', index=False)
 
-writer = pd.ExcelWriter('styled.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter('styled.xlsx', engine='xlsxwriter')
 
-df_data_comp["check"] = df_data_comp["golden_report_test_result"] + df_data_comp["test_name"]
-print("ooo", df_data_comp["check"])
-df_data_comp1["golden_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
+    df_data_comp["check"] = df_data_comp["golden_report_test_result"] + df_data_comp["test_name"]
+    print("ooo", df_data_comp["check"])
+    df_data_comp1["golden_report_test_result"] = df_data_comp['check'].drop_duplicates().to_list()
 
-print(len(df_data_comp['test_name'].drop_duplicates().to_list()))
+    print(len(df_data_comp['test_name'].drop_duplicates().to_list()))
 
-dict_check = {}
-for name in test_name_test_name_au:
-    print('test name ', name)
-    if name in test_name_test_name_gen:
-        gip = df_data_comp[df_data_comp['test_name'] == name]['generated_report_test_result'].to_list()
-        dict_check[name] = gip[0]
-    else:
-        dict_check[name] = 'n/a'
-
-print(len(dict_check.values()))
-
-del df_data_comp['golden_report_test_result']
-del df_data_comp['generated_report_test_result']
-del df_data_comp['check']
-df_data_comp.to_excel(writer, sheet_name='Assertion_Result', index=True)
-
-
-def removeValue(string):
-    # pattern = r'[*]'
-    # string = re.sub(pattern, '', string)
-    for x in string:
-        if x == 'n':
-            return string[:3]
+    dict_check = {}
+    for name in test_name_test_name_au:
+        print('test name ', name)
+        if name in test_name_test_name_gen:
+            gip = df_data_comp[df_data_comp['test_name'] == name]['generated_report_test_result'].to_list()
+            dict_check[name] = gip[0]
         else:
-            return string[:4]
+            dict_check[name] = 'n/a'
+
+    print(len(dict_check.values()))
+
+    del df_data_comp['golden_report_test_result']
+    del df_data_comp['generated_report_test_result']
+    del df_data_comp['check']
+    df_data_comp.to_excel(writer, sheet_name='Assertion_Result', index=True)
 
 
-df_data_comp1["golden_report_test_result"] = df_data_comp1["golden_report_test_result"].apply(removeValue)
-df_data_comp1["generated_report_test_result"] = dict_check.values()
+    def removeValue(string):
+        # pattern = r'[*]'
+        # string = re.sub(pattern, '', string)
+        for x in string:
+            if x == 'n':
+                return string[:3]
+            else:
+                return string[:4]
 
-df_data_comp1['Overall_result'] = df_data_comp1["golden_report_test_result"] == (
-    df_data_comp1["generated_report_test_result"])
+
+    df_data_comp1["golden_report_test_result"] = df_data_comp1["golden_report_test_result"].apply(removeValue)
+    df_data_comp1["generated_report_test_result"] = dict_check.values()
+
+    df_data_comp1['Overall_result'] = df_data_comp1["golden_report_test_result"] == (
+        df_data_comp1["generated_report_test_result"])
 
 
-def color_boolean(val):
-    return ['background-color: red' if x == False else 'background-color: green' for x in val]
+    def color_boolean(val):
+        return ['background-color: red' if x == False else 'background-color: green' for x in val]
 
 
-df_data_comp1 = df_data_comp1.style.apply(color_boolean, axis=1, subset=['Overall_result'])
+    df_data_comp1 = df_data_comp1.style.apply(color_boolean, axis=1, subset=['Overall_result'])
 
-df_data_comp1.to_excel(writer, sheet_name='Overall_Result', index=False)
-writer.save()
-# # Save the Excel
+    df_data_comp1.to_excel(writer, sheet_name='Overall_Result', index=False)
+    writer._save()
+    # # Save the Excel
